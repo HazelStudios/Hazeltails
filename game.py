@@ -2,7 +2,7 @@ import pygame
 
 from scenes.base import Scene
 from scenes.level_scene import LevelScene
-from settings import FIXED_DT, MAX_FRAME_TIME, TARGET_FPS
+from settings import FIXED_DT, KEY_BINDINGS, MAX_FRAME_TIME, TARGET_FPS
 from system.renderer import Renderer
 
 
@@ -34,7 +34,9 @@ class Game:
 
     def handle_events(self):
         for event in pygame.event.get():
-            if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
+            if event.type == pygame.QUIT or (
+                event.type == pygame.KEYDOWN and event.key in KEY_BINDINGS["quit"]
+            ):
                 self.running = False
                 return
             self.scene.handle_event(event)

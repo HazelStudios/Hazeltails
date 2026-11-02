@@ -1,4 +1,5 @@
 from pathlib import Path
+import pygame
 
 BASE_DIR = Path(__file__).resolve().parent
 ASSETS_DIR = BASE_DIR / "assets"
@@ -21,3 +22,12 @@ BACKGROUND_COLOR = (26, 32, 44)
 PLATFORM_COLOR = (82, 125, 90)
 PLAYER_COLOR = (225, 157, 88)
 TEXT_COLOR = (235, 235, 235)
+
+KEY_BINDINGS = {
+    "move_left": [pygame.K_a, pygame.K_LEFT],
+    "move_right": [pygame.K_d, pygame.K_RIGHT],
+    "jump": [pygame.K_SPACE],
+    "pause": [pygame.K_p],
+    "restart": [pygame.K_r],
+    "quit": [pygame.K_ESCAPE],
+}

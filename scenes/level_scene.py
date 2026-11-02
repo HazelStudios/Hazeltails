@@ -4,6 +4,7 @@ from entities.player.hazel import Hazel
 from scenes.base import Scene
 from settings import (
     BACKGROUND_COLOR,
+    KEY_BINDINGS,
     PLATFORM_COLOR,
     PLAYER_COLOR,
     TEXT_COLOR,
@@ -20,8 +21,20 @@ class LevelScene(Scene):
         self.camera = Camera(WINDOW_SIZE, self.level.bounds)
         self.input_handler = InputHandler()
         self.font = pygame.font.Font(None, 26)
-        self.help_text = self.font.render("A/D or arrows: move | Space: jump | P: pause | R: restart | Esc: quit", True, TEXT_COLOR)
-        self.pause_text = self.font.render("Paused - press P to resume", True, TEXT_COLOR)
+        labels = {
+            action: "/".join(pygame.key.name(key) for key in keys) or "-"
+            for action, keys in KEY_BINDINGS.items()
+        }
+        self.help_text = self.font.render(
+            f"{labels['move_left']}, {labels['move_right']}: move | "
+            f"{labels['jump']}: jump | {labels['pause']}: pause | "
+            f"{labels['restart']}: restart | {labels['quit']}: quit",
+            True,
+            TEXT_COLOR,
+        )
+        self.pause_text = self.font.render(
+            f"Paused - press {labels['pause']} to resume", True, TEXT_COLOR
+        )
         self.reset()
 
     def reset(self):
@@ -35,10 +48,10 @@ class LevelScene(Scene):
             self.paused = True
             self.input_handler.clear()
         elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_p:
+            if event.key in KEY_BINDINGS["pause"]:
                 self.paused = not self.paused
                 self.input_handler.clear()
-            elif event.key == pygame.K_r:
+            elif event.key in KEY_BINDINGS["restart"]:
                 self.reset()
             elif not self.paused:
                 self.input_handler.handle_event(event)
