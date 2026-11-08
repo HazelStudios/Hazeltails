@@ -7,6 +7,8 @@ from settings import (
     PLAYER_SIZE,
     PLAYER_SPEED,
 )
+from system.fsm import FSM
+from entities.player.states import IdleState, WalkState, JumpState, FallState, DeadState
 
 
 class Hazel:
@@ -17,14 +19,54 @@ class Hazel:
         self.velocity = pygame.Vector2()
         self.rect = pygame.Rect(spawn, PLAYER_SIZE)
         self.on_ground = False
+        self.current_animation = "idle"
+
+        self.idle_state = IdleState()
+        self.walk_state = WalkState()
+        self.jump_state = JumpState()
+        self.fall_state = FallState()
+        self.dead_state = DeadState()
+
+        self.fsm = FSM(self.idle_state, actor=self)
+        self._setup_transitions()
+
+    def _setup_transitions(self):
+        t = self.fsm.add_transition
+        t(self.idle_state, "move", self.walk_state)
+        t(self.idle_state, "jump", self.jump_state)
+        t(self.idle_state, "fall", self.fall_state)
+        t(self.idle_state, "die",  self.dead_state)
+        t(self.walk_state, "stop", self.idle_state)
+        t(self.walk_state, "jump", self.jump_state)
+        t(self.walk_state, "fall", self.fall_state)
+        t(self.walk_state, "die",  self.dead_state)
+        t(self.jump_state, "fall", self.fall_state)
+        t(self.jump_state, "die",  self.dead_state)
+        t(self.fall_state, "land", self.idle_state)
+        t(self.fall_state, "move", self.walk_state)
+        t(self.fall_state, "die",  self.dead_state)
+
+    def set_animation(self, anim_name):
+        self.current_animation = anim_name
 
     def move(self, direction):
+        if self.fsm.current is self.dead_state:
+            return
         self.velocity.x = direction * PLAYER_SPEED
+        if direction != 0:
+            if self.on_ground:
+                self.fsm.trigger("move", self)
+        else:
+            if self.on_ground:
+                self.fsm.trigger("stop", self)
 
     def jump(self):
+        if self.fsm.current is self.dead_state:
+            return
         if self.on_ground:
             self.velocity.y = -JUMP_SPEED
             self.on_ground = False
+            self.fsm.trigger("jump", self)
 
     def update(self, dt, platforms):
         self.velocity.y = min(self.velocity.y + GRAVITY * dt, MAX_FALL_SPEED)
@@ -66,3 +108,6 @@ class Hazel:
                 and self.rect.right > platform.left
                 for platform in platforms
             )
+
+        # Update the FSM after physics to ensure the state reflects the current situation
+        self.fsm.update(self, dt)
