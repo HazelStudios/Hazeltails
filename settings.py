@@ -1,6 +1,8 @@
 from pathlib import Path
 import pygame
 
+from constants import ACTION_JUMP
+
 BASE_DIR = Path(__file__).resolve().parent
 ASSETS_DIR = BASE_DIR / "assets"
 DATA_DIR = BASE_DIR / "data"
@@ -26,7 +28,7 @@ TEXT_COLOR = (235, 235, 235)
 KEY_BINDINGS = {
     "move_left": [pygame.K_a, pygame.K_LEFT],
     "move_right": [pygame.K_d, pygame.K_RIGHT],
-    "jump": [pygame.K_SPACE],
+    ACTION_JUMP: [pygame.K_SPACE],
     "pause": [pygame.K_p],
     "restart": [pygame.K_r],
     "quit": [pygame.K_ESCAPE],

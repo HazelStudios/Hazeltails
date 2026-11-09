@@ -1,11 +1,18 @@
 import pygame
 
+from constants import (
+    ACTION_DIE,
+    ACTION_FALL,
+    ACTION_JUMP,
+    ACTION_LAND,
+    ACTION_MOVE,
+    ACTION_STOP,
+    ANIMATION_IDLE,
+)
 from settings import (
     GRAVITY,
-    JUMP_SPEED,
     MAX_FALL_SPEED,
     PLAYER_SIZE,
-    PLAYER_SPEED,
 )
 from system.fsm import FSM
 from entities.player.hazel_states import IdleState, WalkState, JumpState, FallState, DeadState
@@ -21,24 +28,24 @@ class Hazel:
 
     transitions = {
         # Idle transitions
-        (idle_state, "move"): walk_state,
-        (idle_state, "jump"): jump_state,
-        (idle_state, "fall"): fall_state,
-        (idle_state, "die"): dead_state,
+        (idle_state, ACTION_MOVE): walk_state,
+        (idle_state, ACTION_JUMP): jump_state,
+        (idle_state, ACTION_FALL): fall_state,
+        (idle_state, ACTION_DIE): dead_state,
         # Walk transitions
-        (walk_state, "stop"): idle_state,
-        (walk_state, "jump"): jump_state,
-        (walk_state, "fall"): fall_state,
-        (walk_state, "die"): dead_state,
+        (walk_state, ACTION_STOP): idle_state,
+        (walk_state, ACTION_JUMP): jump_state,
+        (walk_state, ACTION_FALL): fall_state,
+        (walk_state, ACTION_DIE): dead_state,
         # Jump transitions
-        (jump_state, "fall"): fall_state,
-        (jump_state, "land"): idle_state,
-        (jump_state, "move"): walk_state,
-        (jump_state, "die"): dead_state,
+        (jump_state, ACTION_FALL): fall_state,
+        (jump_state, ACTION_LAND): idle_state,
+        (jump_state, ACTION_MOVE): walk_state,
+        (jump_state, ACTION_DIE): dead_state,
         # Fall transitions
-        (fall_state, "land"): idle_state,
-        (fall_state, "move"): walk_state,
-        (fall_state, "die"): dead_state,
+        (fall_state, ACTION_LAND): idle_state,
+        (fall_state, ACTION_MOVE): walk_state,
+        (fall_state, ACTION_DIE): dead_state,
     }
 
     def __init__(self, spawn: tuple[int, int]):
@@ -46,7 +53,7 @@ class Hazel:
         self.velocity = pygame.Vector2()
         self.rect = pygame.Rect(spawn, PLAYER_SIZE)
         self.on_ground = False
-        self.current_animation = "idle"
+        self.current_animation = ANIMATION_IDLE
         self.fsm = FSM(self.idle_state, transitions=self.transitions, actor=self)
 
     def set_animation(self, anim_name: str) -> None:
@@ -54,25 +61,13 @@ class Hazel:
         self.current_animation = anim_name
 
     def move(self, direction: int) -> None:
-        """Apply horizontal input direction to velocity and signal FSM."""
-        if self.fsm.current is self.dead_state:
-            return
-        self.velocity.x = direction * PLAYER_SPEED
-        if direction != 0:
-            if self.on_ground:
-                self.fsm.trigger("move", self)
-        else:
-            if self.on_ground:
-                self.fsm.trigger("stop", self)
+        """Forward movement to the current state."""
+        action = ACTION_MOVE if direction != 0 else ACTION_STOP
+        self.fsm.handle_command(self, action, direction)
 
     def jump(self) -> None:
-        """Apply upward impulse if grounded and signal FSM."""
-        if self.fsm.current is self.dead_state:
-            return
-        if self.on_ground:
-            self.velocity.y = -JUMP_SPEED
-            self.on_ground = False
-            self.fsm.trigger("jump", self)
+        """Forward the jump action to the current state."""
+        self.fsm.handle_command(self, ACTION_JUMP)
 
     def update(self, dt: float, platforms: list[pygame.Rect]) -> None:
         """Advance physics simulation, resolve collisions per axis, and synchronize state machine."""

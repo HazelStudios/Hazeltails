@@ -10,7 +10,7 @@ class State:
     def enter(self, actor):
         logger.debug("Entering state: %s", self.name)
 
-    def handle_command(self, actor, command):
+    def handle_command(self, actor, command, value=None):
         return None
 
     def update(self, actor, dt):
@@ -41,8 +41,8 @@ class FSM:
             logger.debug("Transition: %s -> %s (event: '%s')", self.current.name, target.name, event)
             self.change_state(target, actor)
 
-    def handle_command(self, actor, command):
-        next_state = self.current.handle_command(actor, command)
+    def handle_command(self, actor, command, value=None):
+        next_state = self.current.handle_command(actor, command, value)
         if next_state is not None:
             self.change_state(next_state, actor)
 
