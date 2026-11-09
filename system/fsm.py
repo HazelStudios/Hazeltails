@@ -1,11 +1,14 @@
+import logging
 from typing import Any, Optional
+
+logger = logging.getLogger(__name__)
 
 class State:
     def __init__(self, name: Optional[str] = None):
         self.name: str = name or self.__class__.__name__
 
     def enter(self, actor):
-        print(f"Entering state: {self.name}")
+        logger.debug("Entering state: %s", self.name)
 
     def handle_command(self, actor, command):
         return None
@@ -14,7 +17,7 @@ class State:
         return None
 
     def exit(self, actor):
-        print(f"Exiting state: {self.name}")
+        logger.debug("Exiting state: %s", self.name)
 
 class FSM:
     def __init__(self, initial_state: State, transitions: Optional[dict] = None, actor = None):
@@ -35,7 +38,7 @@ class FSM:
     def trigger(self, event, actor):
         target = self.transitions.get((self.current, event))
         if target and target is not self.current:
-            print(f"Transition: {self.current.name} -> {target.name} (event: '{event}')")
+            logger.debug("Transition: %s -> %s (event: '%s')", self.current.name, target.name, event)
             self.change_state(target, actor)
 
     def handle_command(self, actor, command):
