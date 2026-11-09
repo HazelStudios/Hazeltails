@@ -1,32 +1,76 @@
 import pygame
 
+from constants import (
+    ACTION_DIE,
+    ACTION_FALL,
+    ACTION_JUMP,
+    ACTION_LAND,
+    ACTION_MOVE,
+    ACTION_STOP,
+    ANIMATION_IDLE,
+)
 from settings import (
     GRAVITY,
-    JUMP_SPEED,
     MAX_FALL_SPEED,
     PLAYER_SIZE,
-    PLAYER_SPEED,
 )
+from system.fsm import FSM
+from entities.player.hazel_states import IdleState, WalkState, JumpState, FallState, DeadState
 
 
 class Hazel:
     """Player movement and collisions, independent of keyboard and camera"""
+    idle_state = IdleState()
+    walk_state = WalkState()
+    jump_state = JumpState()
+    fall_state = FallState()
+    dead_state = DeadState()
+
+    transitions = {
+        # Idle transitions
+        (idle_state, ACTION_MOVE): walk_state,
+        (idle_state, ACTION_JUMP): jump_state,
+        (idle_state, ACTION_FALL): fall_state,
+        (idle_state, ACTION_DIE): dead_state,
+        # Walk transitions
+        (walk_state, ACTION_STOP): idle_state,
+        (walk_state, ACTION_JUMP): jump_state,
+        (walk_state, ACTION_FALL): fall_state,
+        (walk_state, ACTION_DIE): dead_state,
+        # Jump transitions
+        (jump_state, ACTION_FALL): fall_state,
+        (jump_state, ACTION_LAND): idle_state,
+        (jump_state, ACTION_MOVE): walk_state,
+        (jump_state, ACTION_DIE): dead_state,
+        # Fall transitions
+        (fall_state, ACTION_LAND): idle_state,
+        (fall_state, ACTION_MOVE): walk_state,
+        (fall_state, ACTION_DIE): dead_state,
+    }
 
     def __init__(self, spawn: tuple[int, int]):
         self.position = pygame.Vector2(spawn)
         self.velocity = pygame.Vector2()
         self.rect = pygame.Rect(spawn, PLAYER_SIZE)
         self.on_ground = False
+        self.current_animation = ANIMATION_IDLE
+        self.fsm = FSM(self.idle_state, transitions=self.transitions, actor=self)
 
-    def move(self, direction):
-        self.velocity.x = direction * PLAYER_SPEED
+    def set_animation(self, anim_name: str) -> None:
+        """Update current animation identifier for renderer integration."""
+        self.current_animation = anim_name
 
-    def jump(self):
-        if self.on_ground:
-            self.velocity.y = -JUMP_SPEED
-            self.on_ground = False
+    def move(self, direction: int) -> None:
+        """Forward movement to the current state."""
+        action = ACTION_MOVE if direction != 0 else ACTION_STOP
+        self.fsm.handle_command(self, action, direction)
 
-    def update(self, dt, platforms):
+    def jump(self) -> None:
+        """Forward the jump action to the current state."""
+        self.fsm.handle_command(self, ACTION_JUMP)
+
+    def update(self, dt: float, platforms: list[pygame.Rect]) -> None:
+        """Advance physics simulation, resolve collisions per axis, and synchronize state machine."""
         self.velocity.y = min(self.velocity.y + GRAVITY * dt, MAX_FALL_SPEED)
 
         # Resolve each axis separately so touching a wall does not stop a fall
@@ -66,3 +110,6 @@ class Hazel:
                 and self.rect.right > platform.left
                 for platform in platforms
             )
+
+        # Update the FSM after physics to ensure the state reflects the current situation
+        self.fsm.update(self, dt)
