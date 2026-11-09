@@ -8,11 +8,38 @@ from settings import (
     PLAYER_SPEED,
 )
 from system.fsm import FSM
-from entities.player.states import IdleState, WalkState, JumpState, FallState, DeadState
+from entities.player.hazel_states import IdleState, WalkState, JumpState, FallState, DeadState
 
 
 class Hazel:
     """Player movement and collisions, independent of keyboard and camera"""
+    idle_state = IdleState()
+    walk_state = WalkState()
+    jump_state = JumpState()
+    fall_state = FallState()
+    dead_state = DeadState()
+
+    transitions = {
+        # Idle transitions
+        (idle_state, "move"): walk_state,
+        (idle_state, "jump"): jump_state,
+        (idle_state, "fall"): fall_state,
+        (idle_state, "die"): dead_state,
+        # Walk transitions
+        (walk_state, "stop"): idle_state,
+        (walk_state, "jump"): jump_state,
+        (walk_state, "fall"): fall_state,
+        (walk_state, "die"): dead_state,
+        # Jump transitions
+        (jump_state, "fall"): fall_state,
+        (jump_state, "land"): idle_state,
+        (jump_state, "move"): walk_state,
+        (jump_state, "die"): dead_state,
+        # Fall transitions
+        (fall_state, "land"): idle_state,
+        (fall_state, "move"): walk_state,
+        (fall_state, "die"): dead_state,
+    }
 
     def __init__(self, spawn: tuple[int, int]):
         self.position = pygame.Vector2(spawn)
@@ -20,36 +47,14 @@ class Hazel:
         self.rect = pygame.Rect(spawn, PLAYER_SIZE)
         self.on_ground = False
         self.current_animation = "idle"
+        self.fsm = FSM(self.idle_state, transitions=self.transitions, actor=self)
 
-        self.idle_state = IdleState()
-        self.walk_state = WalkState()
-        self.jump_state = JumpState()
-        self.fall_state = FallState()
-        self.dead_state = DeadState()
-
-        self.fsm = FSM(self.idle_state, actor=self)
-        self._setup_transitions()
-
-    def _setup_transitions(self):
-        t = self.fsm.add_transition
-        t(self.idle_state, "move", self.walk_state)
-        t(self.idle_state, "jump", self.jump_state)
-        t(self.idle_state, "fall", self.fall_state)
-        t(self.idle_state, "die",  self.dead_state)
-        t(self.walk_state, "stop", self.idle_state)
-        t(self.walk_state, "jump", self.jump_state)
-        t(self.walk_state, "fall", self.fall_state)
-        t(self.walk_state, "die",  self.dead_state)
-        t(self.jump_state, "fall", self.fall_state)
-        t(self.jump_state, "die",  self.dead_state)
-        t(self.fall_state, "land", self.idle_state)
-        t(self.fall_state, "move", self.walk_state)
-        t(self.fall_state, "die",  self.dead_state)
-
-    def set_animation(self, anim_name):
+    def set_animation(self, anim_name: str) -> None:
+        """Update current animation identifier for renderer integration."""
         self.current_animation = anim_name
 
-    def move(self, direction):
+    def move(self, direction: int) -> None:
+        """Apply horizontal input direction to velocity and signal FSM."""
         if self.fsm.current is self.dead_state:
             return
         self.velocity.x = direction * PLAYER_SPEED
@@ -60,7 +65,8 @@ class Hazel:
             if self.on_ground:
                 self.fsm.trigger("stop", self)
 
-    def jump(self):
+    def jump(self) -> None:
+        """Apply upward impulse if grounded and signal FSM."""
         if self.fsm.current is self.dead_state:
             return
         if self.on_ground:
@@ -68,7 +74,8 @@ class Hazel:
             self.on_ground = False
             self.fsm.trigger("jump", self)
 
-    def update(self, dt, platforms):
+    def update(self, dt: float, platforms: list[pygame.Rect]) -> None:
+        """Advance physics simulation, resolve collisions per axis, and synchronize state machine."""
         self.velocity.y = min(self.velocity.y + GRAVITY * dt, MAX_FALL_SPEED)
 
         # Resolve each axis separately so touching a wall does not stop a fall
