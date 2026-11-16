@@ -27,7 +27,7 @@ class NPC:
         self.current_animation = ANIMATION_IDLE
 
         # External A* pathfinding data
-        self.path: list[tuple[float, float, str]] = []
+        self.path: list[tuple[pygame.Vector2, str]] = []
         self.repath_timer: float = 0.0
 
         self.fsm = FSM(
