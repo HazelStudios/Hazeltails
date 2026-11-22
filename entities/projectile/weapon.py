@@ -13,8 +13,8 @@ class Weapon:
     def update(self, dt):
         self.cooldown_timer = max(0.0, self.cooldown_timer - dt)
 
-    def fire(self, origin, direction) -> None:
+    def fire(self, owner, origin, direction) -> None:
         if self.cooldown_timer > 0:
             return
         self.cooldown_timer = self.flyweight.cooldown
-        self.manager.spawn(self.flyweight, origin, direction)
+        self.manager.spawn(self.flyweight, owner, origin, direction)

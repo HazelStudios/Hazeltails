@@ -9,6 +9,8 @@ from entities.projectile.weapon import Weapon
 from scenes.base import Scene
 from settings import (
     BACKGROUND_COLOR,
+    COLLISION_CELL_SIZE,
+    HIT_FLASH_COLOR,
     KEY_BINDINGS,
     NPC_COLOR,
     NPC_JUMP_SPEED,
@@ -52,7 +54,8 @@ class LevelScene(Scene):
             "cooldown": PROJECTILE_COOLDOWN,
             "color": PROJECTILE_COLOR,
         })
-        self.projectile_manager = ProjectileManager(PROJECTILE_POOL_SIZE)
+        self.projectile_manager = ProjectileManager(PROJECTILE_POOL_SIZE, COLLISION_CELL_SIZE)
+        self.projectile_manager.set_obstacles(self.level.platforms)
         self.camera = Camera(WINDOW_SIZE, self.level.bounds)
         self.input_handler = InputHandler()
         self.font = pygame.font.Font(None, 26)
@@ -119,13 +122,13 @@ class LevelScene(Scene):
         for command in self.input_handler.get_commands():
             command.execute(self.player)
         self.player.update(dt, self.level.platforms)
-        self.projectile_manager.update(dt, self.level.bounds)
         for npc in self.npcs:
             npc.update(dt, self.level.platforms)
             if npc.rect.top > self.level.bounds.bottom:
                 npc.position.update(npc.spawn_position)
                 npc.rect.topleft = (round(npc.position.x), round(npc.position.y))
                 npc.velocity.update(0, 0)
+        self.projectile_manager.update(dt, self.level.bounds, [self.player, *self.npcs])
         if self.player.rect.top > self.level.bounds.bottom:
             self.reset()
         self.camera.follow(self.player.rect)
@@ -136,10 +139,20 @@ class LevelScene(Scene):
             pygame.draw.rect(surface, PLATFORM_COLOR, self.camera.apply(platform))
         for npc in self.npcs:
             pygame.draw.rect(surface, npc.flyweight.color, self.camera.apply(npc.rect))
+            self.draw_hit(surface, npc)
         for projectile in self.projectile_manager.active():
             pygame.draw.circle(surface, projectile.flyweight.color, self.camera.apply(projectile.rect).center, projectile.flyweight.radius)
         pygame.draw.rect(surface, PLAYER_COLOR, self.camera.apply(self.player.rect))
+        self.draw_hit(surface, self.player)
         # HUD coordinates stay on screen instead of passing through the camera.
         surface.blit(self.help_text, (16, 16))
         if self.paused:
             surface.blit(self.pause_text, (16, 48))
+
+    def draw_hit(self, surface, entity) -> None:
+        if entity.hit_flash_timer <= 0:
+            return
+        rect = self.camera.apply(entity.rect)
+        flash = pygame.Surface(rect.size, pygame.SRCALPHA)
+        flash.fill(HIT_FLASH_COLOR)
+        surface.blit(flash, rect)

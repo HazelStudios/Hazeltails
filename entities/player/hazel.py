@@ -9,6 +9,7 @@ from constants import (
     ACTION_STOP,
     ANIMATION_IDLE,
 )
+from entities.hittable import Hittable
 from entities.projectile.weapon import Weapon
 from settings import (
     GRAVITY,
@@ -19,7 +20,7 @@ from system.fsm import FSM
 from entities.player.hazel_states import IdleState, WalkState, JumpState, FallState, DeadState
 
 
-class Hazel:
+class Hazel(Hittable):
     """Player movement and collisions, independent of keyboard and camera"""
     idle_state = IdleState()
     walk_state = WalkState()
@@ -77,11 +78,12 @@ class Hazel:
     def shoot(self) -> None:
         """Fire horizontally towards the facing side."""
         x = self.rect.right if self.facing > 0 else self.rect.left
-        self.weapon.fire((x, self.rect.centery), self.facing)
+        self.weapon.fire(self, (x, self.rect.centery), self.facing)
 
     def update(self, dt: float, platforms: list[pygame.Rect]) -> None:
         """Advance physics simulation, resolve collisions per axis, and synchronize state machine."""
         self.weapon.update(dt)
+        self.update_hit_flash(dt)
         self.velocity.y = min(self.velocity.y + GRAVITY * dt, MAX_FALL_SPEED)
 
         # Resolve each axis separately so touching a wall does not stop a fall

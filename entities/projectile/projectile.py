@@ -7,14 +7,16 @@ class Projectile:
 
     def __init__(self):
         self.flyweight: ProjectileFlyweight | None = None
+        self.owner = None
         self.position = pygame.Vector2()
         self.velocity = pygame.Vector2()
         self.rect = pygame.Rect(0, 0, 0, 0)
         self.age = 0.0
         self.active = False
 
-    def activate(self, flyweight, center, direction):
+    def activate(self, flyweight, owner, center, direction):
         self.flyweight = flyweight
+        self.owner = owner
         self.position.update(center)
         self.velocity.update(direction * flyweight.speed, 0)
         size = flyweight.radius * 2
