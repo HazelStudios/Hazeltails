@@ -9,6 +9,7 @@ from constants import (
     ACTION_STOP,
     ANIMATION_IDLE,
 )
+from entities.projectile.weapon import Weapon
 from settings import (
     GRAVITY,
     MAX_FALL_SPEED,
@@ -48,11 +49,13 @@ class Hazel:
         (fall_state, ACTION_DIE): dead_state,
     }
 
-    def __init__(self, spawn: tuple[int, int]):
+    def __init__(self, spawn: tuple[int, int], weapon: Weapon):
         self.position = pygame.Vector2(spawn)
         self.velocity = pygame.Vector2()
         self.rect = pygame.Rect(spawn, PLAYER_SIZE)
         self.on_ground = False
+        self.facing = 1
+        self.weapon = weapon
         self.current_animation = ANIMATION_IDLE
         self.fsm = FSM(self.idle_state, transitions=self.transitions, actor=self)
 
@@ -62,6 +65,8 @@ class Hazel:
 
     def move(self, direction: int) -> None:
         """Forward movement to the current state."""
+        if direction != 0:
+            self.facing = direction
         action = ACTION_MOVE if direction != 0 else ACTION_STOP
         self.fsm.handle_command(self, action, direction)
 
@@ -69,8 +74,14 @@ class Hazel:
         """Forward the jump action to the current state."""
         self.fsm.handle_command(self, ACTION_JUMP)
 
+    def shoot(self) -> None:
+        """Fire horizontally towards the facing side."""
+        x = self.rect.right if self.facing > 0 else self.rect.left
+        self.weapon.fire((x, self.rect.centery), self.facing)
+
     def update(self, dt: float, platforms: list[pygame.Rect]) -> None:
         """Advance physics simulation, resolve collisions per axis, and synchronize state machine."""
+        self.weapon.update(dt)
         self.velocity.y = min(self.velocity.y + GRAVITY * dt, MAX_FALL_SPEED)
 
         # Resolve each axis separately so touching a wall does not stop a fall
