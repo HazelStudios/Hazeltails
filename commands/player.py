@@ -26,6 +26,11 @@ class StopCommand(Command):
         player.move(0)
 
 
+class ShootCommand(Command):
+    def execute(self, player: Hazel) -> None:
+        player.shoot()
+
+
 class JumpCommand(Command):
     def execute(self, player: Hazel) -> None:
         player.jump()
