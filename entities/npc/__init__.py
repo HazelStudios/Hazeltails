@@ -1,0 +1,1 @@
+"""Non-player characters and Flyweight definitions"""

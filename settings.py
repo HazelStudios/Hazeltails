@@ -1,7 +1,6 @@
 from pathlib import Path
 import pygame
-
-from constants import ACTION_JUMP
+from constants import ACTION_JUMP, ACTION_SEARCH
 
 BASE_DIR = Path(__file__).resolve().parent
 ASSETS_DIR = BASE_DIR / "assets"
@@ -13,22 +12,55 @@ TARGET_FPS = 60
 FIXED_DT = 1.0 / 120.0
 MAX_FRAME_TIME = 0.1
 
-# Distances in pixels; speeds in pixels/second; gravity in pixels/second².
+# Distances in pixels; speeds in pixels/second; gravity in pixels/second
 PLAYER_SIZE = (32, 48)
 PLAYER_SPEED = 250.0
 JUMP_SPEED = 800.0
 GRAVITY = 1800.0
 MAX_FALL_SPEED = 900.0
 
+# NPC Flyweight & Pathfinding settings
+NPC_SIZE = (32, 48)
+NPC_SPEED = 210.0
+NPC_JUMP_SPEED = 800.0
+NPC_SEARCH_RANGE = 3000.0
+NPC_WAYPOINT_STEP = 64
+NPC_REPATH_INTERVAL = 0.25
+
 BACKGROUND_COLOR = (26, 32, 44)
 PLATFORM_COLOR = (82, 125, 90)
 PLAYER_COLOR = (225, 157, 88)
+NPC_COLOR = (214, 93, 108)
 TEXT_COLOR = (235, 235, 235)
+
+NPC_STALKER = {
+    "size": NPC_SIZE,
+    "speed": NPC_SPEED,
+    "jump_speed": NPC_JUMP_SPEED,
+    "search_range": NPC_SEARCH_RANGE,
+    "color": NPC_COLOR,
+}
+
+# Navigation graph tuning
+NAV_MAX_REACH_X = 320.0
+NAV_MAX_DROP_X = 200.0
+NAV_LEVEL_TOLERANCE_Y = 16
+NAV_FALL_PAST_TARGET_TOLERANCE = 16.0
+NAV_MAX_FLIGHT_TIME = 2.5
+NAV_LANDING_TOLERANCE_FACTOR = 0.75
+
+# Path following tolerances
+NPC_WAYPOINT_TOLERANCE_X = 12
+NPC_EDGE_WAYPOINT_TOLERANCE_X = 5
+NPC_WAYPOINT_TOLERANCE_Y = 18
+NPC_LAUNCH_TOLERANCE_X = 16
+NPC_SPAWN_ARRIVE_DISTANCE = 16.0
 
 KEY_BINDINGS = {
     "move_left": [pygame.K_a, pygame.K_LEFT],
     "move_right": [pygame.K_d, pygame.K_RIGHT],
     ACTION_JUMP: [pygame.K_SPACE],
+    ACTION_SEARCH: [pygame.K_m],
     "pause": [pygame.K_p],
     "restart": [pygame.K_r],
     "quit": [pygame.K_ESCAPE],

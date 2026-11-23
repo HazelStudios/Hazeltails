@@ -7,6 +7,7 @@ class Level:
     def __init__(self):
         self.bounds = pygame.Rect(0, 0, 2200, 720)
         self.spawn = (80, 400)
+        self.npc_spawn = (1100, 452)
         self.platforms = [
             pygame.Rect(0, 500, 800, 220),
             pygame.Rect(940, 500, 1260, 220),
