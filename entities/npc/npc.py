@@ -1,12 +1,13 @@
 import pygame
 from constants import ACTION_SEARCH, ANIMATION_IDLE
+from entities.hittable import Hittable
 from entities.npc.flyweight import NPCFlyweight
 from settings import GRAVITY, MAX_FALL_SPEED
 from system.fsm import FSM
 from system.pathfinding import PlatformNavGraph, Waypoint
 
 
-class NPC:
+class NPC(Hittable):
 
     def __init__(
         self,
@@ -53,6 +54,7 @@ class NPC:
 
     def update(self, dt, platforms: list[pygame.Rect]):
         """Advance physics simulation, resolve collisions per axis, and synchronize state machine."""
+        self.update_hit_flash(dt)
         self.velocity.y = min(self.velocity.y + GRAVITY * dt, MAX_FALL_SPEED)
 
         # Resolve each axis separately so touching a wall does not stop a fall

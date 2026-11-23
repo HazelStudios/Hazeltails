@@ -3,13 +3,24 @@ from constants import ACTION_JUMP, ACTION_SEARCH
 from entities.npc.flyweight import NPCFlyweightFactory
 from entities.npc.npc import NPC
 from entities.player.hazel import Hazel
+from entities.projectile.flyweight import ProjectileFlyweightFactory
+from entities.projectile.manager import ProjectileManager
+from entities.projectile.weapon import Weapon
 from scenes.base import Scene
 from settings import (
     BACKGROUND_COLOR,
+    COLLISION_CELL_SIZE,
+    HIT_FLASH_COLOR,
     KEY_BINDINGS,
     NPC_STALKER,
     PLATFORM_COLOR,
     PLAYER_COLOR,
+    PROJECTILE_COLOR,
+    PROJECTILE_COOLDOWN,
+    PROJECTILE_LIFETIME,
+    PROJECTILE_POOL_SIZE,
+    PROJECTILE_RADIUS,
+    PROJECTILE_SPEED,
     TEXT_COLOR,
     WINDOW_SIZE,
 )
@@ -30,6 +41,15 @@ class LevelScene(Scene):
             self.stalker_flyweight.speed,
             self.stalker_flyweight.jump_speed,
         )
+        self.projectile_flyweight = ProjectileFlyweightFactory().get_flyweight({
+            "radius": PROJECTILE_RADIUS,
+            "speed": PROJECTILE_SPEED,
+            "lifetime": PROJECTILE_LIFETIME,
+            "cooldown": PROJECTILE_COOLDOWN,
+            "color": PROJECTILE_COLOR,
+        })
+        self.projectile_manager = ProjectileManager(PROJECTILE_POOL_SIZE, COLLISION_CELL_SIZE)
+        self.projectile_manager.set_obstacles(self.level.platforms)
         self.camera = Camera(WINDOW_SIZE, self.level.bounds)
         self.input_handler = InputHandler()
         self.font = pygame.font.Font(None, 26)
@@ -39,7 +59,7 @@ class LevelScene(Scene):
         }
         self.help_text = self.font.render(
             f"{labels['move_left']}, {labels['move_right']}: move | "
-            f"{labels[ACTION_JUMP]}: jump | {labels[ACTION_SEARCH]}: npc search | "
+            f"{labels[ACTION_JUMP]}: jump | {labels['shoot']}/mouse1: shoot |{labels[ACTION_SEARCH]}: npc search | "
             f"{labels['pause']}: pause | {labels['restart']}: restart | "
             f"{labels['quit']}: quit",
             True,
@@ -51,7 +71,9 @@ class LevelScene(Scene):
         self.reset()
 
     def reset(self):
-        self.player = Hazel(self.level.spawn)
+        self.projectile_manager.clear()
+        weapon = Weapon(self.projectile_flyweight, self.projectile_manager)
+        self.player = Hazel(self.level.spawn, weapon)
         self.npcs = [
             NPC(
                 spawn=self.level.npc_spawn,
@@ -91,6 +113,7 @@ class LevelScene(Scene):
             npc.update(dt, self.level.platforms)
             if npc.rect.top > self.level.bounds.bottom:
                 npc.respawn()
+        self.projectile_manager.update(dt, self.level.bounds, [self.player, *self.npcs])
         if self.player.rect.top > self.level.bounds.bottom:
             self.reset()
         self.camera.follow(self.player.rect)
@@ -101,8 +124,20 @@ class LevelScene(Scene):
             pygame.draw.rect(surface, PLATFORM_COLOR, self.camera.apply(platform))
         for npc in self.npcs:
             pygame.draw.rect(surface, npc.flyweight.color, self.camera.apply(npc.rect))
+            self.draw_hit(surface, npc)
+        for projectile in self.projectile_manager.active():
+            pygame.draw.circle(surface, projectile.flyweight.color, self.camera.apply(projectile.rect).center, projectile.flyweight.radius)
         pygame.draw.rect(surface, PLAYER_COLOR, self.camera.apply(self.player.rect))
+        self.draw_hit(surface, self.player)
         # HUD coordinates stay on screen instead of passing through the camera.
         surface.blit(self.help_text, (16, 16))
         if self.paused:
             surface.blit(self.pause_text, (16, 48))
+
+    def draw_hit(self, surface, entity) -> None:
+        if entity.hit_flash_timer <= 0:
+            return
+        rect = self.camera.apply(entity.rect)
+        flash = pygame.Surface(rect.size, pygame.SRCALPHA)
+        flash.fill(HIT_FLASH_COLOR)
+        surface.blit(flash, rect)

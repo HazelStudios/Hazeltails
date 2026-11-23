@@ -1,6 +1,6 @@
 import pygame
 
-from commands.player import Command, JumpCommand, LeftCommand, RightCommand, StopCommand
+from commands.player import Command, JumpCommand, LeftCommand, RightCommand, ShootCommand, StopCommand
 from settings import KEY_BINDINGS
 
 
@@ -10,6 +10,7 @@ class InputHandler:
     def __init__(self):
         self._pending_commands: list[Command] = []
         self._jump_command = JumpCommand()
+        self._shoot_command = ShootCommand()
         self._movement_commands = {
             -1: LeftCommand(),
             0: StopCommand(),
@@ -27,6 +28,9 @@ class InputHandler:
         left = any(keys[key] for key in KEY_BINDINGS["move_left"])
         direction = int(right) - int(left)
         commands = [self._movement_commands[direction], *self._pending_commands]
+        # Holding the button keeps the command (with the cooldown), also fires on mouse 1
+        if any(keys[key] for key in KEY_BINDINGS["shoot"]) or pygame.mouse.get_pressed()[0]:
+            commands.append(self._shoot_command)
         self.clear()
         return commands
 
