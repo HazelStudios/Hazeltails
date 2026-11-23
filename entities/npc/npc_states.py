@@ -132,7 +132,14 @@ class NPCReturnState(State, _PathFollowMixin):
     def update(self, actor, dt: float):
         spawn_foot = self._get_spawn_foot(actor)
 
-        if not actor.path and actor.on_ground and actor.nav_graph is not None:
+        actor.repath_timer -= dt
+        if (
+            not actor.path
+            and actor.on_ground
+            and actor.nav_graph is not None
+            and actor.repath_timer <= 0.0
+        ):
+            actor.repath_timer = NPC_REPATH_INTERVAL
             actor.path = actor.nav_graph.find_path(
                 actor.rect.midbottom,
                 spawn_foot,

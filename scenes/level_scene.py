@@ -90,9 +90,7 @@ class LevelScene(Scene):
         for npc in self.npcs:
             npc.update(dt, self.level.platforms)
             if npc.rect.top > self.level.bounds.bottom:
-                npc.position.update(npc.spawn)
-                npc.rect.topleft = (round(npc.position.x), round(npc.position.y))
-                npc.velocity.update(0, 0)
+                npc.respawn()
         if self.player.rect.top > self.level.bounds.bottom:
             self.reset()
         self.camera.follow(self.player.rect)

@@ -30,9 +30,8 @@ class NPCFlyweight:
 
 class NPCFlyweightFactory:
 
-    _flyweights: dict[str, NPCFlyweight] = {}
-
     def __init__(self, initial_flyweights: list[dict]):
+        self._flyweights: dict[str, NPCFlyweight] = {}
         for state in initial_flyweights:
             self._flyweights[self.get_key(state)] = NPCFlyweight(state)
 

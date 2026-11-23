@@ -36,6 +36,13 @@ class NPC:
             actor=self,
         )
 
+    def respawn(self):
+        self.position.update(self.spawn)
+        self.rect.topleft = self.spawn
+        self.velocity.update(0, 0)
+        self.path.clear()
+        self.fsm.change_state(self.flyweight.idle_state, self)
+
     def set_animation(self, anim_name):
         """Update current animation identifier for renderer integration."""
         self.current_animation = anim_name
