@@ -7,11 +7,7 @@ from scenes.base import Scene
 from settings import (
     BACKGROUND_COLOR,
     KEY_BINDINGS,
-    NPC_COLOR,
-    NPC_JUMP_SPEED,
-    NPC_SEARCH_RANGE,
-    NPC_SIZE,
-    NPC_SPEED,
+    NPC_STALKER,
     PLATFORM_COLOR,
     PLAYER_COLOR,
     TEXT_COLOR,
@@ -26,16 +22,14 @@ from world.level import Level
 class LevelScene(Scene):
     def __init__(self):
         self.level = Level()
-        self.nav_graph = PlatformNavGraph(self.level.platforms, NPC_SIZE)
-        self.npc_factory = NPCFlyweightFactory([
-            {
-                "size": NPC_SIZE,
-                "speed": NPC_SPEED,
-                "jump_speed": NPC_JUMP_SPEED,
-                "search_range": NPC_SEARCH_RANGE,
-                "color": NPC_COLOR,
-            }
-        ])
+        self.npc_factory = NPCFlyweightFactory([NPC_STALKER])
+        self.stalker_flyweight = self.npc_factory.get_flyweight(NPC_STALKER)
+        self.nav_graph = PlatformNavGraph(
+            self.level.platforms,
+            self.stalker_flyweight.size,
+            self.stalker_flyweight.speed,
+            self.stalker_flyweight.jump_speed,
+        )
         self.camera = Camera(WINDOW_SIZE, self.level.bounds)
         self.input_handler = InputHandler()
         self.font = pygame.font.Font(None, 26)
@@ -58,17 +52,10 @@ class LevelScene(Scene):
 
     def reset(self):
         self.player = Hazel(self.level.spawn)
-        stalker_flyweight = self.npc_factory.get_flyweight({
-            "size": NPC_SIZE,
-            "speed": NPC_SPEED,
-            "jump_speed": NPC_JUMP_SPEED,
-            "search_range": NPC_SEARCH_RANGE,
-            "color": NPC_COLOR,
-        })
         self.npcs = [
             NPC(
                 spawn=self.level.npc_spawn,
-                flyweight=stalker_flyweight,
+                flyweight=self.stalker_flyweight,
                 nav_graph=self.nav_graph,
                 target=self.player,
             )
@@ -103,7 +90,7 @@ class LevelScene(Scene):
         for npc in self.npcs:
             npc.update(dt, self.level.platforms)
             if npc.rect.top > self.level.bounds.bottom:
-                npc.position.update(npc.spawn_position)
+                npc.position.update(npc.spawn)
                 npc.rect.topleft = (round(npc.position.x), round(npc.position.y))
                 npc.velocity.update(0, 0)
         if self.player.rect.top > self.level.bounds.bottom:

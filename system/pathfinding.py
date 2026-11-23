@@ -1,20 +1,57 @@
 import heapq
 import math
+from dataclasses import dataclass
+from enum import Enum
 from typing import Optional
 import pygame
-from settings import FIXED_DT, GRAVITY, MAX_FALL_SPEED, NPC_JUMP_SPEED, NPC_SPEED, NPC_WAYPOINT_STEP
+from settings import (
+    FIXED_DT,
+    GRAVITY,
+    MAX_FALL_SPEED,
+    NAV_FALL_PAST_TARGET_TOLERANCE,
+    NAV_LANDING_TOLERANCE_FACTOR,
+    NAV_LEVEL_TOLERANCE_Y,
+    NAV_MAX_DROP_X,
+    NAV_MAX_FLIGHT_TIME,
+    NAV_MAX_REACH_X,
+    NPC_WAYPOINT_STEP,
+)
+
+
+class PathAction(Enum):
+    WALK = "walk"
+    JUMP = "jump"
+    DROP = "drop"
+
+    @property
+    def is_edge_action(self) -> bool:
+        return self in (PathAction.JUMP, PathAction.DROP)
+
+
+@dataclass
+class Waypoint:
+    position: pygame.Vector2
+    action: PathAction
 
 
 class PlatformNavGraph:
 
-    def __init__(self, platforms: list[pygame.Rect], entity_size: tuple[int, int]):
+    def __init__(
+        self,
+        platforms: list[pygame.Rect],
+        entity_size: tuple[int, int],
+        speed: float,
+        jump_speed: float,
+    ):
         self.entity_width, self.entity_height = entity_size
+        self.speed = speed
+        self.jump_speed = jump_speed
         self.walkable: list[pygame.Rect] = [
             p for p in platforms if p.left >= 0 and p.width >= self.entity_width
         ]
         self.nodes: list[pygame.Vector2] = []
         self.node_platform: list[int] = []
-        self.edges: dict[int, list[tuple[int, float, str]]] = {}
+        self.edges: dict[int, list[tuple[int, float, PathAction]]] = {}
         self._build_nodes()
 
     def _build_nodes(self):
@@ -49,11 +86,11 @@ class PlatformNavGraph:
             direction = -1.0
 
         pos = pygame.Vector2(start.x - self.entity_width / 2.0, start.y - self.entity_height)
-        vel = pygame.Vector2(direction * NPC_SPEED, -NPC_JUMP_SPEED)
+        vel = pygame.Vector2(direction * self.speed, -self.jump_speed)
         sim_rect = pygame.Rect(round(pos.x), round(pos.y), self.entity_width, self.entity_height)
 
         # Simulate up to 2.5 seconds of flight
-        max_steps = int(2.5 / FIXED_DT)
+        max_steps = int(NAV_MAX_FLIGHT_TIME / FIXED_DT)
         for _ in range(max_steps):
             prev_bottom = pos.y + self.entity_height
             vel.y = min(vel.y + GRAVITY * FIXED_DT, MAX_FALL_SPEED)
@@ -79,11 +116,11 @@ class PlatformNavGraph:
                     if vel.y < 0:
                         return False
                     if vel.y > 0 and prev_bottom <= plat.top + 2.0:
-                        if plat is target_plat and abs(sim_rect.centerx - target.x) <= NPC_WAYPOINT_STEP * 0.75:
+                        if plat is target_plat and abs(sim_rect.centerx - target.x) <= NPC_WAYPOINT_STEP * NAV_LANDING_TOLERANCE_FACTOR:
                             return True
                         return False
 
-            if vel.y > 0 and (pos.y + self.entity_height) > target.y + 16.0:
+            if vel.y > 0 and (pos.y + self.entity_height) > target.y + NAV_FALL_PAST_TARGET_TOLERANCE:
                 return False
 
         return False
@@ -100,19 +137,19 @@ class PlatformNavGraph:
         is_edge_a = is_left_edge_a or is_right_edge_a
 
         # Filter only platforms within jump reach so simulation stays fast on huge maps
-        reach_margin = 320.0 + self.entity_width
+        reach_margin = NAV_MAX_REACH_X + self.entity_width
         nearby_platforms = [
             p for p in self.walkable if p.right >= a.x - reach_margin and p.left <= a.x + reach_margin
         ]
 
-        node_edges: list[tuple[int, float, str]] = []
+        node_edges: list[tuple[int, float, PathAction]] = []
 
         for j, b in enumerate(self.nodes):
             if i == j:
                 continue
 
             dx = abs(a.x - b.x)
-            if dx > 320.0:
+            if dx > NAV_MAX_REACH_X:
                 continue
 
             plat_b = self.walkable[self.node_platform[j]]
@@ -121,30 +158,30 @@ class PlatformNavGraph:
             # Walk along the same platform
             if self.node_platform[i] == self.node_platform[j]:
                 if dx <= NPC_WAYPOINT_STEP * 1.25:
-                    node_edges.append((j, dx, "walk"))
+                    node_edges.append((j, dx, PathAction.WALK))
                 continue
 
             # Drop down from an elevated platform's left or right edge
-            if dy > 16:
-                if is_edge_a and dx <= 200.0:
+            if dy > NAV_LEVEL_TOLERANCE_Y:
+                if is_edge_a and dx <= NAV_MAX_DROP_X:
                     drop_clearance = half_w + 10.0
                     valid_left_drop = is_left_edge_a and b.x <= (plat_a.left - drop_clearance)
                     valid_right_drop = is_right_edge_a and b.x >= (plat_a.right + drop_clearance)
                     if valid_left_drop or valid_right_drop:
-                        node_edges.append((j, a.distance_to(b) + 15.0, "drop"))
+                        node_edges.append((j, a.distance_to(b) + 15.0, PathAction.DROP))
                 continue
 
             # Jump across a gap or up onto a higher platform
-            if abs(dy) <= 16 and not is_edge_a:
+            if abs(dy) <= NAV_LEVEL_TOLERANCE_Y and not is_edge_a:
                 continue
 
             # Check impossible jump heights before simulating
-            if -dy > NPC_JUMP_SPEED ** 2 / (2 * GRAVITY):
+            if -dy > self.jump_speed ** 2 / (2 * GRAVITY):
                 continue
 
             if self._simulate_jump(a, b, plat_a, plat_b, nearby_platforms):
                 cost = math.hypot(dx, dy * 1.3) + 30.0
-                node_edges.append((j, cost, "jump"))
+                node_edges.append((j, cost, PathAction.JUMP))
 
         self.edges[i] = node_edges
         return node_edges
@@ -172,10 +209,10 @@ class PlatformNavGraph:
             return []
 
         if start_idx == goal_idx:
-            return [(goal_vec, "walk")]
+            return [Waypoint(goal_vec, PathAction.WALK)]
 
         open_heap: list[tuple[float, int]] = [(0.0, start_idx)]
-        came_from: dict[int, tuple[int, str]] = {}
+        came_from: dict[int, tuple[int, PathAction]] = {}
         g_score: dict[int, float] = {start_idx: 0.0}
 
         goal_node = self.nodes[goal_idx]
@@ -184,20 +221,20 @@ class PlatformNavGraph:
             _, current = heapq.heappop(open_heap)
 
             if current == goal_idx:
-                path: list[tuple[pygame.Vector2, str]] = []
+                path: list[Waypoint] = []
                 curr = current
                 while curr in came_from:
                     prev, action = came_from[curr]
-                    path.append((self.nodes[curr].copy(), action))
+                    path.append(Waypoint(self.nodes[curr].copy(), action))
                     curr = prev
-                path.append((self.nodes[start_idx].copy(), "walk"))
+                path.append(Waypoint(self.nodes[start_idx].copy(), PathAction.WALK))
                 path.reverse()
-                path.append((goal_vec, "walk"))
-                
+                path.append(Waypoint(goal_vec, PathAction.WALK))
+
                 # Remove the first waypoint if it is in the same direction as the next one to avoid unnecessary backtracking
-                if len(path) > 1 and path[1][1] == "walk":
-                    to_next = path[1][0].x - start_vec.x
-                    from_start = start_vec.x - path[0][0].x
+                if len(path) > 1 and path[1].action == PathAction.WALK:
+                    to_next = path[1].position.x - start_vec.x
+                    from_start = start_vec.x - path[0].position.x
                     if (to_next > 0 and from_start > 0) or (to_next < 0 and from_start < 0):
                         path.pop(0)
 

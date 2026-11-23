@@ -7,8 +7,16 @@ from constants import (
     ANIMATION_RETURN,
     ANIMATION_SEARCH,
 )
-from settings import NPC_REPATH_INTERVAL
+from settings import (
+    NPC_EDGE_WAYPOINT_TOLERANCE_X,
+    NPC_LAUNCH_TOLERANCE_X,
+    NPC_REPATH_INTERVAL,
+    NPC_SPAWN_ARRIVE_DISTANCE,
+    NPC_WAYPOINT_TOLERANCE_X,
+    NPC_WAYPOINT_TOLERANCE_Y,
+)
 from system.fsm import State
+from system.pathfinding import PathAction
 
 
 class _PathFollowMixin:
@@ -24,28 +32,31 @@ class _PathFollowMixin:
             actor.velocity.x = 0
             return True
 
-        waypoint, action = actor.path[0]
+        waypoint = actor.path[0]
         foot = pygame.Vector2(actor.rect.midbottom)
 
-        dx = waypoint.x - foot.x
-        dy = waypoint.y - foot.y
+        dx = waypoint.position.x - foot.x
+        dy = waypoint.position.y - foot.y
 
-        next_is_edge_action = len(actor.path) > 1 and actor.path[1][1] in ("jump", "drop")
-        x_tolerance = 5 if next_is_edge_action else 12
-
-        if action in ("jump", "drop"):
-            reached = actor.on_ground and abs(dx) <= 16 and abs(dy) <= 10
+        next_is_edge_action = len(actor.path) > 1 and actor.path[1].action.is_edge_action
+        if next_is_edge_action:
+            x_tolerance = NPC_EDGE_WAYPOINT_TOLERANCE_X
         else:
-            reached = abs(dx) <= x_tolerance and abs(dy) <= 18
+            x_tolerance = NPC_WAYPOINT_TOLERANCE_X
+
+        if waypoint.action.is_edge_action:
+            reached = actor.on_ground and abs(dx) <= NPC_LAUNCH_TOLERANCE_X and abs(dy) <= 10
+        else:
+            reached = abs(dx) <= x_tolerance and abs(dy) <= NPC_WAYPOINT_TOLERANCE_Y
 
         if reached:
             actor.path.pop(0)
             if not actor.path:
                 actor.velocity.x = 0
                 return True
-            waypoint, action = actor.path[0]
-            dx = waypoint.x - foot.x
-            dy = waypoint.y - foot.y
+            waypoint = actor.path[0]
+            dx = waypoint.position.x - foot.x
+            dy = waypoint.position.y - foot.y
 
         if abs(dx) > 3:
             direction = 1 if dx > 0 else -1
@@ -53,7 +64,7 @@ class _PathFollowMixin:
         else:
             actor.velocity.x = 0
 
-        if action == "jump" and actor.on_ground:
+        if waypoint.action == PathAction.JUMP and actor.on_ground:
             actor.velocity.y = -actor.flyweight.jump_speed
             actor.on_ground = False
 
@@ -131,6 +142,6 @@ class NPCReturnState(State, _PathFollowMixin):
         finished = self._follow_current_path(actor)
         dist_to_spawn = pygame.Vector2(actor.rect.midbottom).distance_to(spawn_foot)
 
-        if finished or dist_to_spawn <= 16.0:
+        if finished or dist_to_spawn <= NPC_SPAWN_ARRIVE_DISTANCE:
             actor.velocity.x = 0
             actor.fsm.trigger(ACTION_IDLE, actor)

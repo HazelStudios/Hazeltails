@@ -3,7 +3,7 @@ from constants import ACTION_SEARCH, ANIMATION_IDLE
 from entities.npc.flyweight import NPCFlyweight
 from settings import GRAVITY, MAX_FALL_SPEED
 from system.fsm import FSM
-from system.pathfinding import PlatformNavGraph
+from system.pathfinding import PlatformNavGraph, Waypoint
 
 
 class NPC:
@@ -27,7 +27,7 @@ class NPC:
         self.current_animation = ANIMATION_IDLE
 
         # External A* pathfinding data
-        self.path: list[tuple[pygame.Vector2, str]] = []
+        self.path: list[Waypoint] = []
         self.repath_timer: float = 0.0
 
         self.fsm = FSM(

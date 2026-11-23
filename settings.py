@@ -33,6 +33,29 @@ PLAYER_COLOR = (225, 157, 88)
 NPC_COLOR = (214, 93, 108)
 TEXT_COLOR = (235, 235, 235)
 
+NPC_STALKER = {
+    "size": NPC_SIZE,
+    "speed": NPC_SPEED,
+    "jump_speed": NPC_JUMP_SPEED,
+    "search_range": NPC_SEARCH_RANGE,
+    "color": NPC_COLOR,
+}
+
+# Navigation graph tuning
+NAV_MAX_REACH_X = 320.0
+NAV_MAX_DROP_X = 200.0
+NAV_LEVEL_TOLERANCE_Y = 16
+NAV_FALL_PAST_TARGET_TOLERANCE = 16.0
+NAV_MAX_FLIGHT_TIME = 2.5
+NAV_LANDING_TOLERANCE_FACTOR = 0.75
+
+# Path following tolerances
+NPC_WAYPOINT_TOLERANCE_X = 12
+NPC_EDGE_WAYPOINT_TOLERANCE_X = 5
+NPC_WAYPOINT_TOLERANCE_Y = 18
+NPC_LAUNCH_TOLERANCE_X = 16
+NPC_SPAWN_ARRIVE_DISTANCE = 16.0
+
 KEY_BINDINGS = {
     "move_left": [pygame.K_a, pygame.K_LEFT],
     "move_right": [pygame.K_d, pygame.K_RIGHT],
